@@ -193,11 +193,13 @@ python demo.py
 
 # 👨‍💻 Author
 
-## Priyam Keshri
+### Priyam Keshri
+
 
 # ⭐ Support
 
 If you found this project interesting or useful, consider giving the repository a ⭐.
+
 ---
 
 <p align="center">
