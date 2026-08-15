@@ -293,11 +293,6 @@ if health.status_code == 200:
     st.sidebar.success(f"Connected — {info['n_known_users']} known users")
     st.sidebar.markdown(f'<span class="session-badge">dataset: {esc(info.get("dataset", "unknown"))}</span>',
                          unsafe_allow_html=True)
-    if info.get("demographics_source") == "synthetic":
-        st.sidebar.caption(
-            "⚠️ This dataset has no real age/gender/occupation data — "
-            "demographic cold-start uses synthesized peers, not real ones."
-        )
 else:
     st.sidebar.error(f"API returned {health.status_code}")
     st.stop()
