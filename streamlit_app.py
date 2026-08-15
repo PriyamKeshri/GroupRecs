@@ -453,7 +453,7 @@ st.markdown('<div class="section-heading">🎯 Recommendations</div>', unsafe_al
 if not group["members"]:
     st.info("Add at least one member to get recommendations.")
 else:
-    top_n = st.slider("How many movies per strategy", 1, 10, 5)
+    top_n = st.slider("How many movies per strategy", 1, 25, 10)
 
     compare_resp = api_get(f"/groups/{gid}/compare", top_n=top_n)
     if compare_resp.status_code != 200:
