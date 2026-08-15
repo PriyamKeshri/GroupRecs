@@ -1,0 +1,8 @@
+{
+  "python.defaultInterpreterPath": "/opt/anaconda3/bin/python3",
+  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.cache": false
+  }
+}

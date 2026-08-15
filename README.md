@@ -1,0 +1,244 @@
+# 🎬 GroupRecs — Fair Group Movie Recommendation System
+
+> **Recommending a movie for one person is easy. Recommending one that a whole group can agree on is the real challenge.**
+
+GroupRecs is a **group movie recommendation system** designed for movie nights with multiple people.
+
+Unlike traditional recommendation systems that optimize recommendations for a single user, GroupRecs predicts what **each member of a group** is likely to enjoy and then combines those predictions using different **group decision-making strategies**.
+
+The system supports users with existing rating histories as well as **brand-new users with no historical data**, via two cold-start signals — genre preferences or demographics — usable separately or blended together.
+
+---
+
+## ✨ Features
+
+- 🎯 Personalized movie rating prediction
+- 🧠 Matrix Factorization implemented from scratch
+- ⚡ Stochastic Gradient Descent (SGD) optimization
+- 🆕 Cold-start recommendation for new users — genre-based, demographic-based, or both blended
+- 🎭 Genre-based preference profiling
+- 👥 Demographic-based profiling (age / gender / occupation → "people like you" averaging)
+- 👥 Group-aware movie recommendation
+- ⚖️ Multiple social-choice aggregation strategies
+- 📊 Comparison of different group recommendation strategies
+- 🧪 Synthetic MovieLens-like data generation (no download required to try it)
+- 🎬 Support for MovieLens 100K, 1M, and 25M — biggest downloaded dataset is used automatically
+- 💾 Trained-model disk cache — skips retraining on restart when nothing's changed
+- 🌐 FastAPI backend with interactive Swagger docs
+- 🖥️ Streamlit "group room" UI
+- 🧩 Modular recommendation pipeline using NumPy and Pandas
+
+---
+
+# 🧠 Problem Statement
+
+Traditional recommendation systems usually answer:
+
+> **"What movie should I recommend to this user?"**
+
+However, movie nights typically involve multiple people.
+
+For example:
+
+```text
+Alice → Loves Comedy & Romance
+Bob   → Loves Action & Thriller
+Chloe → Loves Drama
+Dev   → Loves Horror & Thriller
+```
+
+A movie that Alice loves might be terrible for Dev.
+
+Therefore, simply recommending the highest-rated movie for one person is not enough.
+
+GroupRecs approaches this as a **group decision-making problem**.
+
+The system follows this pipeline:
+
+```text
+Individual Preferences
+          │
+          ▼
+┌──────────────────────┐
+│ Individual Prediction│
+│       Models         │
+└──────────┬───────────┘
+           │
+           ▼
+    Predicted Ratings
+           │
+           ▼
+┌──────────────────────┐
+│ Group Aggregation    │
+│                      │
+│ • Average            │
+│ • Least Misery       │
+│ • Most Pleasure      │
+│ • Fairness-Aware     │
+└──────────┬───────────┘
+           │
+           ▼
+      Group Ranking
+           │
+           ▼
+      🎬 Movie Night
+```
+
+---
+
+# 🚀 How It Works
+
+GroupRecs consists of three major stages:
+
+1. **Individual Recommendation**
+2. **Cold-Start Recommendation**
+3. **Group Preference Aggregation**
+
+## 1. 🎯 Individual Recommendation
+
+For users with historical ratings, GroupRecs uses **Matrix Factorization** to learn latent representations of users and movies.
+
+The predicted rating is modeled as:
+
+```text
+rating(u, i) =
+    global_mean
+    + user_bias
+    + item_bias
+    + user_factors · item_factors
+```
+
+The model is trained using **Stochastic Gradient Descent (SGD)** with L2 regularization.
+
+The matrix factorization implementation is built **from scratch using NumPy**, rather than relying on a dedicated recommendation-system library.
+
+## 2. 🆕 Cold-Start Recommendation
+
+Traditional collaborative filtering struggles when a user has no rating history.
+
+This is known as the **cold-start problem**. GroupRecs handles new users with two lightweight signals — either alone, or blended together for a stronger prediction:
+
+**Genre-based.** Instead of requiring a new user to rate many movies, they can simply select genres they enjoy:
+
+```text
+User Preferences
+
+✓ Comedy
+✓ Romance
+```
+
+The system builds a genre preference vector and compares it with each movie's genre vector using **cosine similarity**, converted into a predicted rating.
+
+**Demographic-based.** The user gives age / gender / occupation instead, and gets a prediction averaged from the ratings of similar existing users ("people like you"), falling back through progressively coarser peer groups when the exact group is too small to trust.
+
+This allows completely new users to participate in group recommendations immediately, with no rating history required.
+
+---
+
+# 📊 Group Strategy Comparison
+
+| Strategy | Objective | Behavior |
+|----------|-----------|-----------|
+| `average` | Overall satisfaction | Balances everyone's predicted ratings |
+| `least_misery` | Avoid strong dislike | Protects the least satisfied member |
+| `most_pleasure` | Maximum enthusiasm | Favors the strongest individual preference |
+| `fairness_aware` | Satisfaction + fairness | Penalizes large disagreements |
+
+> **There is no universally "best" group recommendation strategy.**
+
+Different strategies optimize different objectives.
+
+---
+
+# 📦 Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/PriyamKeshri/GroupRecs.git
+cd GroupRecs
+```
+
+Create a virtual environment.
+
+### macOS / Linux
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### Windows
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# ▶️ Running the Project
+
+**Console demo** — trains (or loads a cached model for) the biggest dataset you've downloaded and walks through a full group recommendation end to end:
+
+```bash
+python3 demo.py
+```
+
+**API + UI** — the full FastAPI backend + Streamlit "group room" together, one command:
+
+```bash
+./run.sh
+```
+Then open http://localhost:8501 for the UI, or http://localhost:8000/docs for the API's interactive Swagger docs.
+
+If you're actively editing `src/api.py` and want hot-reload, run the two pieces in separate terminals instead:
+```bash
+python3 -m uvicorn src.api:app --reload --port 8000     # terminal 1
+streamlit run streamlit_app.py                          # terminal 2
+```
+
+---
+
+# 🗂️ Dataset
+
+Works out of the box with a synthetic MovieLens-like generator — no download needed. For real data, download whichever tier you want into `data/`; the biggest one present is used automatically (25M → 1M → 100k → synthetic):
+
+```bash
+# ~1,700 movies / 943 users / 100k ratings
+curl -L -o /tmp/ml-100k.zip https://files.grouplens.org/datasets/movielens/ml-100k.zip
+unzip /tmp/ml-100k.zip -d data/
+
+# ~3,900 movies / 6,040 users / 1M ratings
+curl -L -o /tmp/ml-1m.zip https://files.grouplens.org/datasets/movielens/ml-1m.zip
+unzip /tmp/ml-1m.zip -d data/
+
+# ~62,000 movies (titles up to 2019) / 25M ratings
+curl -L -o /tmp/ml-25m.zip https://files.grouplens.org/datasets/movielens/ml-25m.zip
+unzip /tmp/ml-25m.zip "ml-25m/movies.csv" "ml-25m/ratings.csv" -d data/
+```
+
+The 25M dataset has no real demographic data (GroupLens stopped collecting it after the 1M release) — demographics are synthesized for it so the demographic cold-start path still works, just not against real peer data. Check `GET /health` or the Streamlit sidebar to see which dataset and demographic source are active.
+
+---
+
+# 👨‍💻 Author
+
+### Priyam Keshri
+
+
+# ⭐ Support
+
+If you found this project interesting or useful, consider giving the repository a ⭐.
+
+---
+
+<p align="center">
+  <b>🎬 One movie. Multiple preferences. One group decision.</b>
+</p>
