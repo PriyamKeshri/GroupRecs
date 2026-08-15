@@ -123,13 +123,21 @@ def load_or_train(model_params=None, verbose=True):
     }
 
     if dataset_name != "synthetic":
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        to_cache = {k: v for k, v in result.items() if k not in ("dataset_name", "demographics_source", "from_cache")}
-        tmp_path = cache_path + ".tmp"
-        with open(tmp_path, "wb") as f:
-            pickle.dump(to_cache, f)
-        os.replace(tmp_path, cache_path)  # atomic -- no half-written cache file if interrupted mid-write
-        if verbose:
-            print(f"  Cached trained model to {os.path.relpath(cache_path, PROJECT_ROOT)}")
+        try:
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            to_cache = {k: v for k, v in result.items() if k not in ("dataset_name", "demographics_source", "from_cache")}
+            tmp_path = cache_path + ".tmp"
+            with open(tmp_path, "wb") as f:
+                pickle.dump(to_cache, f)
+            os.replace(tmp_path, cache_path)  # atomic -- no half-written cache file if interrupted mid-write
+            if verbose:
+                print(f"  Cached trained model to {os.path.relpath(cache_path, PROJECT_ROOT)}")
+        except OSError as exc:
+            # Read-only / ephemeral filesystems (e.g. serverless platforms like
+            # Vercel, whose filesystem is read-only outside /tmp) can't persist
+            # a cache between invocations -- that just means every cold start
+            # retrains, not a reason to crash the request.
+            if verbose:
+                print(f"  Could not write model cache ({exc}) -- continuing without it")
 
     return result

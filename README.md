@@ -228,6 +228,30 @@ The 25M dataset has no real demographic data (GroupLens stopped collecting it af
 
 ---
 
+# ☁️ Deployment
+
+Both pieces are normal long-running servers (in-memory group state, no external database), so they need a host that keeps a process alive — not a serverless/edge platform. Free split that works well:
+
+**API on [Render](https://render.com):**
+1. New → Web Service → connect this repo
+2. Build command: `pip install -r requirements.txt`
+3. Start command: `uvicorn src.api:app --host 0.0.0.0 --port $PORT`
+4. Plan: Free
+
+Downloaded datasets aren't in the repo (see `.gitignore`), so the deployed API automatically falls back to the synthetic generator — fast to train, no extra setup needed on first boot.
+
+**UI on [Streamlit Community Cloud](https://share.streamlit.io):**
+1. New app → connect this repo → main file path `streamlit_app.py`
+2. In the app's Settings → Secrets, add:
+   ```toml
+   API_BASE_URL = "https://<your-render-service>.onrender.com"
+   ```
+   (`streamlit_app.py` reads this automatically — see `_default_api_url()` — so visitors don't have to paste the API URL in themselves.)
+
+Render's free tier sleeps after 15 minutes idle and takes ~30-60s to wake on the next request — expected on a free plan, not a bug.
+
+---
+
 # 👨‍💻 Author
 
 ### Priyam Keshri

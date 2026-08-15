@@ -17,11 +17,27 @@ Streamlit widgets.
 """
 
 import html
+import os
 
 import requests
 import streamlit as st
 
-DEFAULT_API_URL = "http://localhost:8000"
+
+def _default_api_url():
+    """Where the API lives, in priority order: Streamlit Cloud's "Secrets"
+    panel (st.secrets), then a plain environment variable (Render/other
+    hosts), then localhost for local dev. Lets the same code default
+    correctly whether it's running locally or deployed, without a code
+    change -- just set API_BASE_URL wherever it's hosted."""
+    try:
+        if "API_BASE_URL" in st.secrets:
+            return st.secrets["API_BASE_URL"]
+    except Exception:
+        pass
+    return os.environ.get("API_BASE_URL", "http://localhost:8000")
+
+
+DEFAULT_API_URL = _default_api_url()
 
 STRATEGIES = [
     ("average", "🔵 Average", "Best overall satisfaction", "#4ea8de"),
