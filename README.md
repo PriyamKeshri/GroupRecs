@@ -10,6 +10,15 @@ The system supports users with existing rating histories as well as **brand-new 
 
 ---
 
+## 🔗 Live Demo
+
+- **App (Streamlit UI):** [priyamkeshri-grouprecs-app.streamlit.app](https://priyamkeshri-grouprecs-app.streamlit.app)
+- **API (FastAPI backend):** [grouprecs.onrender.com](https://grouprecs.onrender.com) — interactive docs at [`/docs`](https://grouprecs.onrender.com/docs)
+
+Viewing an existing group's recommendations is open to anyone with the link; creating a group or adding/removing members requires the admin password (see **Deployment** below). Render's free tier sleeps after 15 minutes idle, so the first request after a quiet period can take 30-60s to wake up.
+
+---
+
 ## ✨ Features
 
 - 🎯 Personalized movie rating prediction
