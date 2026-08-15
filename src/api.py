@@ -21,6 +21,13 @@ State is kept in memory (a dict of groups + one trained model), which is
 fine for a demo/portfolio API. Swap `AppState` for a real DB-backed store
 before this ever sees real traffic.
 
+Mutating endpoints (create a group, add/remove a member) require HTTP
+Basic Auth so a public deployment isn't editable by anyone with the link
+-- read endpoints (browsing the catalog, viewing a group's recommendations)
+stay open. Credentials come from the AUTH_USERNAME / AUTH_PASSWORD
+environment variables -- never hardcode real credentials here, this file
+is public. See _require_auth() below.
+
 FastAPI runs sync endpoint functions (like these) across a worker thread
 pool, so concurrent requests are genuinely concurrent, not just
 interleaved async tasks -- two requests can run their Python bodies at the
@@ -32,11 +39,14 @@ reliably throws `RuntimeError: dictionary changed size during iteration`
 requests routinely, not just under artificial load).
 """
 
+import os
+import secrets
 import threading
 import uuid
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field, model_validator
 
 from .cold_start import ColdStartProfiler
@@ -46,6 +56,29 @@ from .model_cache import load_or_train
 from .recommender import MatrixFactorizationRecommender
 
 VALID_GENDERS = {"M", "F"}
+
+# Fallback credentials so local dev (./run.sh, demo/testing) works with zero
+# setup. A deployed instance MUST override these via real environment
+# variables -- _require_auth() below prints a loud startup warning if it's
+# still running on the placeholder password, so a forgotten override is
+# obvious in the logs rather than a silent security hole.
+AUTH_USERNAME = os.environ.get("AUTH_USERNAME", "admin")
+AUTH_PASSWORD = os.environ.get("AUTH_PASSWORD", "changeme")
+
+_basic_auth = HTTPBasic()
+
+
+def _require_auth(credentials: HTTPBasicCredentials = Depends(_basic_auth)):
+    """Dependency for mutating endpoints. compare_digest avoids leaking
+    match-length via response-timing side channels."""
+    user_ok = secrets.compare_digest(credentials.username, AUTH_USERNAME)
+    pass_ok = secrets.compare_digest(credentials.password, AUTH_PASSWORD)
+    if not (user_ok and pass_ok):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 
 # --------------------------------------------------------------------------
@@ -153,6 +186,12 @@ app = FastAPI(
 @app.on_event("startup")
 def on_startup():
     _train_model()
+    if AUTH_PASSWORD == "changeme":
+        print(
+            "  WARNING: AUTH_PASSWORD is not set -- running on the default "
+            "admin/changeme credentials. Fine for local dev; set AUTH_USERNAME "
+            "and AUTH_PASSWORD env vars before this is reachable publicly."
+        )
 
 
 # ---- helpers --------------------------------------------------------------
@@ -266,7 +305,7 @@ def list_movies(genre: Optional[str] = None):
 # ---- groups -----------------------------------------------------------------
 
 @app.post("/groups", response_model=GroupResponse, status_code=201)
-def create_group(req: GroupCreateRequest):
+def create_group(req: GroupCreateRequest, _auth: None = Depends(_require_auth)):
     with state.lock:
         group_id = uuid.uuid4().hex[:8]
         state.groups[group_id] = {"name": req.name, "members": {}}
@@ -281,7 +320,7 @@ def get_group(group_id: str):
 
 
 @app.post("/groups/{group_id}/members/existing", response_model=GroupResponse, status_code=201)
-def add_existing_member(group_id: str, req: ExistingMemberRequest):
+def add_existing_member(group_id: str, req: ExistingMemberRequest, _auth: None = Depends(_require_auth)):
     with state.lock:
         group = _get_group(group_id)
         if req.label in group["members"]:
@@ -294,7 +333,7 @@ def add_existing_member(group_id: str, req: ExistingMemberRequest):
 
 
 @app.post("/groups/{group_id}/members/guest", response_model=GroupResponse, status_code=201)
-def add_guest_member(group_id: str, req: GuestMemberRequest):
+def add_guest_member(group_id: str, req: GuestMemberRequest, _auth: None = Depends(_require_auth)):
     with state.lock:
         group = _get_group(group_id)
         if req.label in group["members"]:
@@ -323,7 +362,7 @@ def add_guest_member(group_id: str, req: GuestMemberRequest):
 
 
 @app.delete("/groups/{group_id}/members/{label}", response_model=GroupResponse)
-def remove_member(group_id: str, label: str):
+def remove_member(group_id: str, label: str, _auth: None = Depends(_require_auth)):
     with state.lock:
         group = _get_group(group_id)
         if label not in group["members"]:

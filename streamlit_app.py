@@ -39,6 +39,19 @@ def _default_api_url():
 
 DEFAULT_API_URL = _default_api_url()
 
+
+def _default_admin_credentials():
+    """Optional convenience default for the deployer's own admin username/
+    password (so you don't have to retype them every visit) -- set
+    AUTH_USERNAME / AUTH_PASSWORD in this app's Secrets panel, matching
+    whatever you set as env vars on the API host. Anyone else just types
+    them into the sidebar fields themselves; nothing here is a real secret
+    unless you put one in Secrets."""
+    try:
+        return st.secrets.get("AUTH_USERNAME", ""), st.secrets.get("AUTH_PASSWORD", "")
+    except Exception:
+        return "", ""
+
 STRATEGIES = [
     ("average", "🔵 Average", "Best overall satisfaction", "#4ea8de"),
     ("least_misery", "🟢 Least misery", "No one hates the pick", "#2a9d8f"),
@@ -202,12 +215,19 @@ def api_get(path, **params):
     return _request("GET", path, params=params)
 
 
+def _admin_auth():
+    """Credentials for mutating calls -- create/add/remove all require the
+    API's HTTP Basic Auth (see src/api.py _require_auth). Read endpoints
+    don't send this at all."""
+    return (st.session_state.admin_username, st.session_state.admin_password)
+
+
 def api_post(path, body):
-    return _request("POST", path, json=body)
+    return _request("POST", path, json=body, auth=_admin_auth())
 
 
 def api_delete(path):
-    return _request("DELETE", path)
+    return _request("DELETE", path, auth=_admin_auth())
 
 
 def error_detail(resp, fallback="Something went wrong."):
@@ -251,12 +271,21 @@ def get_occupations(api_url):
 # Session state
 # --------------------------------------------------------------------------
 
+_default_admin_user, _default_admin_pass = _default_admin_credentials()
+
 st.session_state.setdefault("api_url", DEFAULT_API_URL)
 st.session_state.setdefault("group_id", None)
 st.session_state.setdefault("group_name", None)
+st.session_state.setdefault("admin_username", _default_admin_user)
+st.session_state.setdefault("admin_password", _default_admin_pass)
 
 st.sidebar.markdown("### ⚙️ Settings")
 st.session_state.api_url = st.sidebar.text_input("API base URL", st.session_state.api_url)
+
+with st.sidebar.expander("🔐 Admin credentials", expanded=not st.session_state.admin_password):
+    st.caption("Needed to create a group or add/remove members. Viewing an existing group's recommendations doesn't require this.")
+    st.session_state.admin_username = st.text_input("Username", st.session_state.admin_username)
+    st.session_state.admin_password = st.text_input("Password", st.session_state.admin_password, type="password")
 
 health = api_get("/health")
 if health.status_code == 200:
@@ -346,8 +375,11 @@ else:
             )
         with btn_col:
             if st.button("✕", key=f"remove_{m['label']}", help=f"Remove {m['label']}"):
-                api_delete(f"/groups/{gid}/members/{m['label']}")
-                st.rerun()
+                resp = api_delete(f"/groups/{gid}/members/{m['label']}")
+                if resp.status_code == 200:
+                    st.rerun()
+                else:
+                    st.error(error_detail(resp, "Failed to remove member."))
 
 st.markdown('<div class="section-heading">➕ Add a member</div>', unsafe_allow_html=True)
 tab_existing, tab_guest = st.tabs(["🎞️ Existing user", "🆕 New guest (cold start)"])

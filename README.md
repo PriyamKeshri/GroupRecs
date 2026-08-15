@@ -237,6 +237,7 @@ Both pieces are normal long-running servers (in-memory group state, no external 
 2. Build command: `pip install -r requirements.txt`
 3. Start command: `uvicorn src.api:app --host 0.0.0.0 --port $PORT`
 4. Plan: Free
+5. Environment → add `AUTH_USERNAME` and `AUTH_PASSWORD` (pick your own values — these gate group creation and adding/removing members so a public link isn't editable by anyone who finds it; without them the API falls back to the placeholder `admin`/`changeme`, which is fine for local dev but not for a public deployment)
 
 Downloaded datasets aren't in the repo (see `.gitignore`), so the deployed API automatically falls back to the synthetic generator — fast to train, no extra setup needed on first boot.
 
@@ -245,8 +246,12 @@ Downloaded datasets aren't in the repo (see `.gitignore`), so the deployed API a
 2. In the app's Settings → Secrets, add:
    ```toml
    API_BASE_URL = "https://<your-render-service>.onrender.com"
+   AUTH_USERNAME = "<same value you set on Render>"
+   AUTH_PASSWORD = "<same value you set on Render>"
    ```
-   (`streamlit_app.py` reads this automatically — see `_default_api_url()` — so visitors don't have to paste the API URL in themselves.)
+   (`streamlit_app.py` reads these automatically — see `_default_api_url()` / `_default_admin_credentials()` — so visitors don't have to paste the API URL in themselves, and you don't have to retype your own admin password every visit. `AUTH_USERNAME`/`AUTH_PASSWORD` here are just a convenience default for the sidebar fields, not a separate secret store — anyone you want to let create/edit groups still needs the actual password, typed into the sidebar's "Admin credentials" section.)
+
+**Who can do what on the deployed app:** anyone with the link can view an existing group's recommendations (`GET` endpoints are open). Creating a group or adding/removing members requires the admin username/password (`POST`/`DELETE` endpoints require it) — enter it once in the sidebar's "Admin credentials" expander.
 
 Render's free tier sleeps after 15 minutes idle and takes ~30-60s to wake on the next request — expected on a free plan, not a bug.
 
