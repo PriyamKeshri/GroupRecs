@@ -43,7 +43,14 @@ def main():
     print("=" * 70)
     print("STEP 2: Simulating a movie-night group")
     print("=" * 70)
-    all_item_ids = list(model.item_id_to_idx.keys())
+    # The full catalog (movies_df's item_ids), not just what the model was
+    # trained on -- includes any merged-in Bollywood titles (see
+    # model_cache.py:_merge_bollywood_catalog). Passing this explicitly to
+    # every predictor means untrained items (Bollywood has no ratings to
+    # train collaborative filtering on) still get a prediction -- a global
+    # mean for CF users, same fallback they'd get for any movie they have
+    # no rating signal on.
+    all_item_ids = movies_df["item_id"].tolist()
 
     # Two existing users with rating history -- pure collaborative filtering.
     # Picked dynamically (not hardcoded to user_id 1/2) because the 25M

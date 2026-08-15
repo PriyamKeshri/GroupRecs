@@ -24,6 +24,13 @@ All four return a 4-tuple: (ratings_df, movies_df, genre_columns,
 users_df). users_df (user_id, age, gender, occupation) feeds the
 demographic cold-start in src/demographics.py -- see that module for why
 it's a useful alternative to genre-based cold start.
+
+A fifth loader, load_bollywood_catalog(), is different in kind: it's a
+supplementary movie catalog (title + genres only, no ratings/users) merged
+on top of whichever base dataset above is active -- see
+src/model_cache.py:load_or_train() for how the merge works and why
+collaborative-filtering users only get an unpersonalized prediction for
+these titles (there's no per-user rating data for them anywhere).
 """
 
 import numpy as np
@@ -274,3 +281,51 @@ def load_movielens_25m(data_dir, n_users=8000, seed=42):
     })
 
     return ratings_df, movies_df, genre_columns, users_df
+
+
+# Item IDs for the Bollywood catalog are offset well above any MovieLens
+# item_id (which top out in the low hundreds of thousands even for ml-25m),
+# so merging the two catalogs can never collide on item_id.
+BOLLYWOOD_ITEM_ID_OFFSET = 900_000_000
+
+
+def load_bollywood_catalog(data_dir):
+    """
+    Loads a supplementary Bollywood movie catalog -- title + genres only,
+    no ratings or users, because no per-user rating data exists for these
+    movies anywhere (every Bollywood dataset we could find is IMDb/Wikipedia
+    metadata, not a MovieLens-style ratings log). Meant to be merged on top
+    of whichever base dataset is active (see model_cache.py:load_or_train),
+    extending the genre-based cold-start catalog with real Hindi-cinema
+    titles. Collaborative-filtering users get an unpersonalized (global
+    mean) prediction for these titles instead of a tailored one, same as
+    for any other movie they have no rating signal on.
+
+    Expects a CSV at `{data_dir}/movies.csv` with columns movie_id,
+    movie_name, year, genre (comma-separated) -- other columns (overview,
+    director, cast) are ignored. Download from:
+    https://github.com/devensinghbhagtani/Bollywood-Movie-Dataset
+
+    Returns: (movies_df, genre_columns) -- note the 2-tuple, not the
+    4-tuple the other loaders return, since there's no ratings_df/users_df.
+    """
+    raw = pd.read_csv(f"{data_dir}/movies.csv")
+
+    genre_lists = raw["genre"].fillna("").apply(
+        lambda gs: [g.strip() for g in gs.split(",") if g.strip()]
+    )
+    genre_columns = sorted({g for genres in genre_lists for g in genres})
+
+    names = raw["movie_name"].astype(str).str.strip()
+    years = pd.to_numeric(raw["year"], errors="coerce")
+    titled = names + " (" + years.astype("Int64").astype(str) + ")"
+    titles = titled.where(years.notna(), names)
+
+    movies_df = pd.DataFrame({
+        "item_id": BOLLYWOOD_ITEM_ID_OFFSET + np.arange(len(raw)),
+        "title": titles,
+    })
+    for genre in genre_columns:
+        movies_df[genre] = genre_lists.apply(lambda genres, genre=genre: int(genre in genres))
+
+    return movies_df, genre_columns

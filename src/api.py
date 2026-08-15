@@ -227,17 +227,29 @@ def _member_predictions(group: dict) -> Dict[str, Dict[int, float]]:
     if not group["members"]:
         raise HTTPException(400, "group has no members yet -- add at least one")
 
+    # Explicit item_ids (the full catalog, including any merged-in
+    # Bollywood titles) rather than each predictor's own default -- both
+    # predict_for_user() and DemographicProfiler.predict_for_guest() default
+    # to only the items they have real training/rating data for, which would
+    # silently exclude Bollywood titles from any group containing an
+    # existing user or a demographic-only guest (recommend_for_group only
+    # ranks items *every* member has a prediction for). Passing the full
+    # catalog explicitly means an untrained item still gets a prediction --
+    # both fall back to a global mean for anything they have no signal on,
+    # same as they already do for any other movie with no signal.
+    all_item_ids = state.movies_df["item_id"].tolist()
+
     preds = {}
     for label, member in group["members"].items():
         if member["kind"] == "existing":
-            preds[label] = state.recommender.predict_for_user(member["user_id"])
+            preds[label] = state.recommender.predict_for_user(member["user_id"], item_ids=all_item_ids)
         else:
             signals = []
             if member.get("liked_genres"):
                 signals.append((state.cold_start.predict_for_guest(member["liked_genres"]), 1.0))
             if member.get("age") is not None:
                 demo_preds = state.demographics.predict_for_guest(
-                    member["age"], member["gender"], member["occupation"]
+                    member["age"], member["gender"], member["occupation"], item_ids=all_item_ids
                 )
                 signals.append((demo_preds, 1.0))
             preds[label] = blend_predictions(signals)

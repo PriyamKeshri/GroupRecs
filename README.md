@@ -32,6 +32,7 @@ Viewing an existing group's recommendations is open to anyone with the link; cre
 - 📊 Comparison of different group recommendation strategies
 - 🧪 Synthetic MovieLens-like data generation (no download required to try it)
 - 🎬 Support for MovieLens 100K, 1M, and 25M — biggest downloaded dataset is used automatically
+- 🇮🇳 Bundled Bollywood catalog (2,199 titles, 1951-2023) merged in automatically
 - 💾 Trained-model disk cache — skips retraining on restart when nothing's changed
 - 🌐 FastAPI backend with interactive Swagger docs
 - 🖥️ Streamlit "group room" UI
@@ -234,6 +235,12 @@ unzip /tmp/ml-25m.zip "ml-25m/movies.csv" "ml-25m/ratings.csv" -d data/
 ```
 
 The 25M dataset has no real demographic data (GroupLens stopped collecting it after the 1M release) — demographics are synthesized for it so the demographic cold-start path still works, just not against real peer data. Check `GET /health` or the Streamlit sidebar to see which dataset and demographic source are active.
+
+**Bollywood catalog** (`data/bollywood/movies.csv`, [source](https://github.com/devensinghbhagtani/Bollywood-Movie-Dataset)) is bundled in the repo and merges automatically on top of whichever base dataset is active — 2,199 Hindi-cinema titles (1951-2023) with real genre data. Unlike the MovieLens tiers, no per-user ratings exist for these movies anywhere (every Bollywood dataset we found is IMDb/Wikipedia metadata, not a ratings log), so:
+- Genre-based cold-start guests get full, personalized Bollywood recommendations
+- Existing/collaborative-filtering users get an unpersonalized (global-mean) score for these titles specifically, same fallback the model already uses for any movie a user has no rating signal on
+
+Because genre-based scoring is coarse (cosine similarity over one-hot genre vectors), broad multi-genre preferences often produce large tied-score groups spanning both catalogs — a Bollywood title can be mathematically tied for the #1 spot yet not appear in a small `top_n` slice if enough base-dataset movies share that same tie. Use a larger `top_n` or more specific genre picks to see more Bollywood variety.
 
 ---
 

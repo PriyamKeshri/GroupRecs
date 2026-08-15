@@ -24,8 +24,11 @@ import json
 import os
 import pickle
 
+import pandas as pd
+
 from .data_loader import (
     generate_synthetic_data,
+    load_bollywood_catalog,
     load_movielens_100k,
     load_movielens_1m,
     load_movielens_25m,
@@ -36,6 +39,9 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 DATA_ROOT = os.path.join(PROJECT_ROOT, "data")
 CACHE_DIR = os.path.join(PROJECT_ROOT, ".cache")
 CACHE_VERSION = "v1"
+
+BOLLYWOOD_DIR = os.path.join(DATA_ROOT, "bollywood")
+BOLLYWOOD_MARKER = os.path.join(BOLLYWOOD_DIR, "movies.csv")
 
 DEFAULT_MODEL_PARAMS = {"n_factors": 20, "n_epochs": 20, "learning_rate": 0.01}
 
@@ -76,10 +82,42 @@ def _cache_path(dataset_name, marker_path, model_params):
     return os.path.join(CACHE_DIR, f"{dataset_name}-{key}.pkl")
 
 
+def _merge_bollywood_catalog(movies_df, genre_columns, verbose=True):
+    """If data/bollywood/movies.csv is present, extends movies_df/
+    genre_columns with it -- see data_loader.load_bollywood_catalog for
+    what that does and doesn't give collaborative-filtering users. Applied
+    fresh on every call (cache or no cache) rather than baked into the
+    cached pickle -- it's a ~625KB CSV, re-parsing it is cheap, and this
+    way updating the Bollywood catalog doesn't require reasoning about
+    cache invalidation at all."""
+    if not os.path.exists(BOLLYWOOD_MARKER):
+        return movies_df, genre_columns
+
+    bollywood_movies, bollywood_genres = load_bollywood_catalog(BOLLYWOOD_DIR)
+    merged_genre_columns = sorted(set(genre_columns) | set(bollywood_genres))
+
+    # Both frames need every column in the merged vocabulary before
+    # concatenating, else a genre only one side has shows up as NaN
+    # instead of 0 for the other side's rows.
+    movies_df = movies_df.copy()
+    for genre in merged_genre_columns:
+        if genre not in movies_df.columns:
+            movies_df[genre] = 0
+        if genre not in bollywood_movies.columns:
+            bollywood_movies[genre] = 0
+
+    merged = pd.concat([movies_df, bollywood_movies], ignore_index=True, sort=False)
+    if verbose:
+        print(f"  Merged in {len(bollywood_movies)} Bollywood titles from data/bollywood/ "
+              f"({len(merged)} movies total)")
+    return merged, merged_genre_columns
+
+
 def load_or_train(model_params=None, verbose=True):
     """
     Picks the best available dataset, then either loads a cached trained
     model for it or trains fresh (and writes the cache for next time).
+    Also merges in the Bollywood catalog if data/bollywood/ is present.
 
     Returns a dict: ratings_df, movies_df, genre_columns, users_df,
     dataset_name, model, demographics_source, from_cache.
@@ -97,6 +135,9 @@ def load_or_train(model_params=None, verbose=True):
         cached["dataset_name"] = dataset_name
         cached["demographics_source"] = demographics_source
         cached["from_cache"] = True
+        cached["movies_df"], cached["genre_columns"] = _merge_bollywood_catalog(
+            cached["movies_df"], cached["genre_columns"], verbose=verbose
+        )
         return cached
 
     if verbose:
@@ -140,4 +181,7 @@ def load_or_train(model_params=None, verbose=True):
             if verbose:
                 print(f"  Could not write model cache ({exc}) -- continuing without it")
 
+    result["movies_df"], result["genre_columns"] = _merge_bollywood_catalog(
+        result["movies_df"], result["genre_columns"], verbose=verbose
+    )
     return result
