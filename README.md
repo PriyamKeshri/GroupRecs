@@ -273,6 +273,12 @@ Render's free tier sleeps after 15 minutes idle and takes ~30-60s to wake on the
 
 ---
 
+# 📄 License
+
+[MIT](LICENSE) — free to use, modify, and distribute.
+
+---
+
 # 👨‍💻 Author
 
 ### Priyam Keshri
