@@ -19,6 +19,18 @@ Viewing an existing group's recommendations is open to anyone with the link; cre
 
 ---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="screenshots/landing.png" alt="Landing page" width="800"><br><br>
+  <img src="screenshots/members.png" alt="A group with two members of different tastes" width="800"><br><br>
+  <img src="screenshots/recommendations.png" alt="Most pleasure strategy showing divergent, color-coded scores" width="800">
+</p>
+
+The third screenshot is the whole point of the project in one image: under the **Most pleasure** strategy, *Tu Jhoothi Main Makkaar* scores Dev 0.5 (red) and Alex 5.0 (green) — a pick that thrills one person and would annoy the other. Switch to **Average** or **Fairness-aware** and the ranking changes to favor a pick both of them are reasonably happy with instead.
+
+---
+
 ## ✨ Features
 
 - 🎯 Personalized movie rating prediction
