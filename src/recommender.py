@@ -37,7 +37,6 @@ class MatrixFactorizationRecommender:
         # ID <-> matrix index mappings
         self.user_id_to_idx = {}
         self.item_id_to_idx = {}
-        self.idx_to_item_id = {}
 
     def fit(self, ratings_df, verbose=True):
         """
@@ -50,7 +49,6 @@ class MatrixFactorizationRecommender:
 
         self.user_id_to_idx = {uid: idx for idx, uid in enumerate(user_ids)}
         self.item_id_to_idx = {iid: idx for idx, iid in enumerate(item_ids)}
-        self.idx_to_item_id = {idx: iid for iid, idx in self.item_id_to_idx.items()}
 
         n_users = len(user_ids)
         n_items = len(item_ids)

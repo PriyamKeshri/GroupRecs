@@ -58,7 +58,6 @@ STRATEGIES = [
     ("most_pleasure", "🔴 Most pleasure", "The biggest fan's favorite", "#e63946"),
     ("fairness_aware", "🟣 Fairness-aware", "Penalizes divisive picks", "#9b5de5"),
 ]
-STRATEGY_COLORS = {key: color for key, _, _, color in STRATEGIES}
 STRATEGY_TAB_LABELS = [label for _, label, _, _ in STRATEGIES]
 
 MEMBER_STYLE = {
@@ -275,7 +274,6 @@ _default_admin_user, _default_admin_pass = _default_admin_credentials()
 
 st.session_state.setdefault("api_url", DEFAULT_API_URL)
 st.session_state.setdefault("group_id", None)
-st.session_state.setdefault("group_name", None)
 st.session_state.setdefault("admin_username", _default_admin_user)
 st.session_state.setdefault("admin_password", _default_admin_pass)
 
@@ -319,7 +317,6 @@ if st.session_state.group_id is None:
             if resp.status_code == 201:
                 data = resp.json()
                 st.session_state.group_id = data["group_id"]
-                st.session_state.group_name = data["name"]
                 st.rerun()
             else:
                 st.error(error_detail(resp, "Failed to create group."))
@@ -331,7 +328,6 @@ group_resp = api_get(f"/groups/{gid}")
 if group_resp.status_code != 200:
     st.warning("This session no longer exists on the server (did it restart?). Starting over.")
     st.session_state.group_id = None
-    st.session_state.group_name = None
     st.rerun()
 group = group_resp.json()
 
@@ -343,7 +339,6 @@ with reset_col:
     st.write("")
     if st.button("Start a new session"):
         st.session_state.group_id = None
-        st.session_state.group_name = None
         st.rerun()
 
 

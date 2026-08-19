@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from src.cold_start import ColdStartProfiler
 from src.demographics import DemographicProfiler, blend_predictions
-from src.group_aggregator import compare_all_strategies, recommend_for_group
+from src.group_aggregator import compare_all_strategies
 from src.model_cache import load_or_train
 
 
