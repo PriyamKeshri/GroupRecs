@@ -49,24 +49,44 @@ It predicts what each member of a group would individually rate every candidate 
 
 ## 🧠 How It Works
 
-```
- Individual Preferences
-          │
-          ▼
- ┌─────────────────────┐        Existing users  → Matrix factorization (SGD)
- │  Individual          │       New guests       → Genre similarity and/or
- │  Prediction Models   │                           demographic peer-averaging
- └──────────┬───────────┘
-            ▼
-    Predicted Ratings
-            │
-            ▼
- ┌─────────────────────┐
- │  Group Aggregation   │        average · least_misery
- │                       │       most_pleasure · fairness_aware
- └──────────┬───────────┘
-            ▼
-      Group Ranking  →  🎬 Movie Night
+```mermaid
+flowchart TD
+    A(("👤 Existing user<br/>has rating history")) --> B["Matrix Factorization<br/><sub>from-scratch SGD</sub>"]
+    C(("🆕 New guest<br/>no history yet")) --> D["Genre similarity<br/><sub>cosine match</sub>"]
+    C --> E["Demographic peers<br/><sub>age · gender · occupation</sub>"]
+
+    B --> F["🎯 Predicted rating<br/>per person, per movie"]
+    D --> F
+    E --> F
+
+    F --> G{"⚖️ Group<br/>Aggregation"}
+    G --> H1["🔵 Average"]
+    G --> H2["🟢 Least misery"]
+    G --> H3["🔴 Most pleasure"]
+    G --> H4["🟣 Fairness-aware"]
+
+    H1 --> I(("🎬 Movie Night"))
+    H2 --> I
+    H3 --> I
+    H4 --> I
+
+    classDef existing fill:#4ea8de,stroke:#2c3e50,color:#fff
+    classDef guest fill:#f3a712,stroke:#2c3e50,color:#fff
+    classDef predict fill:#2c2c3a,stroke:#888,color:#fff
+    classDef final fill:#e94560,stroke:#2c3e50,color:#fff
+    classDef avg fill:#4ea8de,stroke:#2c3e50,color:#fff
+    classDef least fill:#2a9d8f,stroke:#2c3e50,color:#fff
+    classDef most fill:#e63946,stroke:#2c3e50,color:#fff
+    classDef fair fill:#9b5de5,stroke:#2c3e50,color:#fff
+
+    class A existing
+    class C guest
+    class B,D,E,F,G predict
+    class H1 avg
+    class H2 least
+    class H3 most
+    class H4 fair
+    class I final
 ```
 
 **Existing users** get predictions from a matrix factorization model trained with stochastic gradient descent:
@@ -83,12 +103,12 @@ rating(user, movie) = global_mean + user_bias + item_bias + user_factors · item
 
 | Strategy | Optimizes for | Behavior |
 |---|---|---|
-| `average` | Overall satisfaction | Balances everyone's predicted ratings |
-| `least_misery` | No one hates the pick | Protects the least satisfied member |
-| `most_pleasure` | Maximum enthusiasm | Favors the single strongest preference |
-| `fairness_aware` | Satisfaction + fairness | Penalizes picks the group disagrees on |
+| 🔵 `average` | Overall satisfaction | Balances everyone's predicted ratings |
+| 🟢 `least_misery` | No one hates the pick | Protects the least satisfied member |
+| 🔴 `most_pleasure` | Maximum enthusiasm | Favors the single strongest preference |
+| 🟣 `fairness_aware` | Satisfaction + fairness | Penalizes picks the group disagrees on |
 
-There's no universally "best" strategy — each optimizes for something different, which is exactly why the app shows all four at once.
+There's no universally "best" strategy — each optimizes for something different, which is exactly why the app shows all four at once (colors above match the strategy tabs in the app).
 
 ---
 
